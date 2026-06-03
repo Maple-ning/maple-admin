@@ -1,5 +1,17 @@
-# Vue 3 + TypeScript + Vite
+# Maple-admin
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+## 启动命令
+1.在根目录下npm install安装项目依赖
+2.在根目录下npm run dev启动项目
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## 技术栈
+前端构建工具：Vite
+构建用户界面的JavaScript框架： Vue
+客户端路由方案： Vue Router
+状态管理库： Pinia
+
+## 代码检查
+eslint
+
+## 好用的工具
+depcheck 可以检查没用的依赖和没安装的包，直接在根目录执行depcheck命令即可
