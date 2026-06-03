@@ -7,37 +7,45 @@ export const usePermissionStore = defineStore("permission", () => {
   const routes = ref<RouteRecordRaw[]>([]);
 
   // 根据角色和权限过滤路由
-  const filterRoutes = (roles: string[], permissions: string[]) => {
-    const filter = (routes: RouteRecordRaw[]): RouteRecordRaw[] => {
-      return routes.filter((route) => {
-        const meta = route.meta; // 去掉 as RouteMeta，直接使用
-        if (meta?.requiresAuth) {
-          // 角色匹配
-          if (meta.roles && !meta.roles.some((role) => roles.includes(role))) {
-            return false;
+  function filterRoutes(roles: string[], permissions: string[]) {
+    const filter = (list: RouteRecordRaw[]): RouteRecordRaw[] => {
+      return list
+        .filter((route) => {
+          const meta = route.meta;
+          if (meta?.requiresAuth) {
+            // 角色匹配
+            if (meta.roles && !meta.roles.some((role) => roles.includes(role))) {
+              return false;
+            }
+            // 权限码匹配
+            if (
+              meta.permissions &&
+              !meta.permissions.some((p) => permissions.includes(p))
+            ) {
+              return false;
+            }
           }
-          // 权限码匹配
-          if (
-            meta.permissions &&
-            !meta.permissions.some((p) => permissions.includes(p))
-          ) {
-            return false;
+          return true;
+        })
+        .map((route) => {
+          if (route.children) {
+            route.children = filter(route.children);
           }
-        }
-        if (route.children) {
-          route.children = filter(route.children);
-        }
-        return true;
-      });
+          return route;
+        });
     };
     return filter(asyncRoutes);
-  };
+  }
 
-  const generateRoutes = async (roles: string[], permissions: string[]) => {
+  async function generateRoutes(roles: string[], permissions: string[]) {
     const accessedRoutes = filterRoutes(roles, permissions);
     routes.value = accessedRoutes;
     return accessedRoutes;
-  };
+  }
 
-  return { routes, generateRoutes };
+  function resetRoutes() {
+    routes.value = [];
+  }
+
+  return { routes, generateRoutes, resetRoutes };
 });

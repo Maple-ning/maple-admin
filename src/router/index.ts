@@ -40,10 +40,6 @@ router.beforeEach(async (to, _from, next) => {
           router.addRoute(route);
         });
 
-        // 解决重复路由警告
-        const isDuplicateError = (err: any) =>
-          err.message?.includes("Duplicate") || err.message?.includes("重複");
-
         // 重定向到目标路由
         next({ ...to, replace: true });
       } catch (error) {

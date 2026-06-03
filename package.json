@@ -11,6 +11,8 @@
     "lint:fix": "eslint . --ext,.vue,.ts,.js --fix"
   },
   "dependencies": {
+    "@ant-design/icons-vue": "^7.0.1",
+    "ant-design-vue": "^4.2.6",
     "pinia": "^3.0.4",
     "vue": "^3.5.34",
     "vue-router": "^4.6.4"
