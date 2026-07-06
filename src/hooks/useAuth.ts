@@ -16,10 +16,15 @@ export function useAuth() {
     loading.value = true;
     error.value = "";
     try {
-      await userStore.login(username, password);
+      const result = await userStore.login({ username, password });
+
+      if (!result.success) {
+        throw new Error(result.message || "登录失败，请重试");
+      }
+
       await loadUserAndRoutes();
       const redirect = (route.query.redirect as string) ?? "/";
-      router.push(redirect);
+      await router.push(redirect);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "登录失败，请重试";
       error.value = msg;

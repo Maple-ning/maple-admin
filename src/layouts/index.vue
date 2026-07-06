@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/stores/user";
+import logoUrl from "../assets/icons/vue.svg";
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -38,7 +39,7 @@ function handleLogout() {
       class="admin-sider"
     >
       <div class="logo">
-        <img src="@assets/icons/vue.svg" alt="logo" class="logo-img" />
+        <img :src="logoUrl" alt="logo" class="logo-img" />
         <span v-show="!collapsed" class="logo-text">枫叶后台</span>
       </div>
       <a-menu

@@ -2,7 +2,7 @@
 import { reactive, ref } from "vue";
 import { UserOutlined, LockOutlined } from "@ant-design/icons-vue";
 import { useAuth } from "@/hooks/useAuth";
-import loginBanner from "@assets/images/login_banner.png";
+import loginBanner from "../../assets/images/login_banner.png";
 
 const { loading, error, login } = useAuth();
 

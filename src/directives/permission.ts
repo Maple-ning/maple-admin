@@ -15,7 +15,7 @@ export const permission: Directive = {
       }
     } else {
       throw new Error(
-        '需要指定权限码，如 v-permission="[\"system:user:create\"]"',
+        `需要指定权限码，如 v-permission="['system:user:create']"`,
       );
     }
   },

@@ -1,28 +1,13 @@
 import { http } from "@/utils/request";
-
-export interface LoginParams {
-  username: string;
-  password: string;
-}
-
-export interface LoginResult {
-  token: string;
-}
-
-export interface UserInfo {
-  username: string;
-  avatar?: string;
-  roles: string[];
-  permissions: string[];
-}
+import type { LoginParams, LoginData, UserInfo } from "@/types/auth";
 
 export const authApi = {
-  login(data: LoginParams) {
-    return http.post<LoginResult>("/auth/login", data);
+  login(data: LoginParams): Promise<LoginData> {
+    return http.post<LoginData>("/auth/login", data);
   },
 
-  getUserInfo() {
-    return http.get<UserInfo>("/auth/userinfo");
+  getUserInfo(): Promise<UserInfo> {
+    return http.get<UserInfo>("/auth/user/info");
   },
 
   logout() {
