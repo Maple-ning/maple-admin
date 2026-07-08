@@ -49,18 +49,23 @@ async function readBody(req: any) {
   }
 }
 
-export function authMockServerPlugin(): Plugin {
+export function authMockServerPlugin(enabled: boolean): Plugin {
   return {
     name: "maple-auth-mock-server",
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (process.env.VITE_USE_MOCK !== "true") {
+        if (!enabled) {
           next();
           return;
         }
 
-        if (req.method !== "POST" || req.url?.split("?")[0] !== "/api/auth/login") {
+        if (req.url?.split("?")[0] !== "/api/auth/login") {
           next();
+          return;
+        }
+
+        if (req.method !== "POST") {
+          sendJson(res, mockError("登录接口请使用 POST 请求", 405));
           return;
         }
 
