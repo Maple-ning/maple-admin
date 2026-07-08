@@ -1,108 +1,32 @@
-// src/api/request.ts
+import axios, {
+  type AxiosAdapter,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+} from "axios";
+import type { ApiResponse } from "@/types/api";
 import { useUserStore } from "@/stores/user";
 import { message } from "ant-design-vue";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
-
-interface ApiResult<T = unknown> {
-  code?: number;
-  data?: T;
-  message?: string;
-}
-
-interface RequestOptions extends Omit<RequestInit, "body"> {
-  body?: unknown;
-  /** 是否跳过 Mock（某些请求需要真实调用） */
-  skipMock?: boolean;
-}
-
-class HttpError extends Error {
-  status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.name = "HttpError";
-    this.status = status;
-  }
-}
-
-// ──────────────────────────────────────────────
-// ✅ Mock 类型定义和接口（不包含具体实现）
-// ──────────────────────────────────────────────
+const USE_MOCK = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK === "true";
 
 export type MockHandler = (params: {
   url: string;
   method: string;
   body?: unknown;
-  headers?: Record<string, string>;
+  headers?: Record<string, unknown>;
   query?: URLSearchParams;
 }) => unknown;
 
-// Mock 注册表（在模块内部）
 const mockRegistry = new Map<string, MockHandler>();
+const defaultAdapter = axios.getAdapter(axios.defaults.adapter);
 
-// 注册 Mock（内部使用）
 export function registerMock(
   method: string,
   url: string,
-  handler: MockHandler
+  handler: MockHandler,
 ) {
-  const key = `${method.toUpperCase()}:${url}`;
-  mockRegistry.set(key, handler);
-  if (import.meta.env.DEV) {
-    console.log(`[Mock] Registered: ${key}`);
-  }
+  mockRegistry.set(`${method.toUpperCase()}:${url}`, handler);
 }
-
-// 匹配并执行 Mock
-function matchMock(
-  url: string,
-  method: string,
-  body?: unknown,
-  headers?: Record<string, string>
-): { matched: boolean; data?: unknown } {
-  const fullUrl = url.startsWith("/") ? url : `/${url}`;
-  const [pathname, queryString] = fullUrl.split("?");
-  const query = new URLSearchParams(queryString || "");
-
-  // 1. 精确匹配
-  const exactKey = `${method.toUpperCase()}:${pathname}`;
-  const exactHandler = mockRegistry.get(exactKey);
-  if (exactHandler) {
-    return {
-      matched: true,
-      data: exactHandler({ url: pathname, method, body, headers, query }),
-    };
-  }
-
-  // 2. 通配符匹配（支持路径参数）
-  for (const [key, handler] of mockRegistry) {
-    const separatorIndex = key.indexOf(":");
-    const registeredMethod = key.slice(0, separatorIndex);
-    const pattern = key.slice(separatorIndex + 1);
-
-    if (registeredMethod !== method.toUpperCase() || !pattern) continue;
-
-    // 将路径模式转为正则，支持 :id 这样的参数
-    const regexPattern = pattern
-      .replace(/:[^/]+/g, "([^/]+)")
-      .replace(/\*/g, ".*");
-    const regex = new RegExp(`^${regexPattern}$`);
-
-    if (regex.test(pathname)) {
-      return {
-        matched: true,
-        data: handler({ url: pathname, method, body, headers, query }),
-      };
-    }
-  }
-
-  return { matched: false };
-}
-
-// ──────────────────────────────────────────────
-// ✅ Mock 响应工具函数
-// ──────────────────────────────────────────────
 
 export function mockResponse<T>(data: T, code = 0, messageStr = "success") {
   return {
@@ -113,15 +37,7 @@ export function mockResponse<T>(data: T, code = 0, messageStr = "success") {
   };
 }
 
-export function mockError(
-  messageStr = "请求失败",
-  code = 500
-): {
-  code: number;
-  data: null;
-  message: string;
-  timestamp: number;
-} {
+export function mockError(messageStr = "请求失败", code = 500) {
   return {
     code,
     data: null,
@@ -132,11 +48,12 @@ export function mockError(
 
 export function mockPaginatedResponse<T>(
   list: T[],
-  page: number = 1,
-  pageSize: number = 10
+  page = 1,
+  pageSize = 10,
 ) {
   const start = (page - 1) * pageSize;
   const end = start + pageSize;
+
   return {
     list: list.slice(start, end),
     total: list.length,
@@ -146,129 +63,158 @@ export function mockPaginatedResponse<T>(
   };
 }
 
-// ──────────────────────────────────────────────
-// ✅ 核心请求函数
-// ──────────────────────────────────────────────
+function getRequestPath(url = "") {
+  const baseURL = import.meta.env.VITE_API_BASE_URL || "";
+  const pathname = url.startsWith("http")
+    ? `/${url.split("/").slice(3).join("/")}`
+    : url;
+  const pathWithoutBase =
+    baseURL && pathname.startsWith(baseURL)
+      ? pathname.slice(baseURL.length)
+      : pathname;
 
-async function request<T = unknown>(
-  url: string,
-  options: RequestOptions = {}
-): Promise<T> {
-  const { body, headers: rawHeaders, skipMock = false, ...rest } = options;
-
-  const userStore = useUserStore();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(rawHeaders as Record<string, string>),
-  };
-
-  if (userStore.token) {
-    headers["Authorization"] = `Bearer ${userStore.token}`;
-  }
-
-  // 1. 处理 Mock（非跳过模式 + USE_MOCK 开启）
-  if (USE_MOCK && !skipMock) {
-    const mockResult = matchMock(url, rest.method || "GET", body, headers);
-
-    if (mockResult.matched) {
-      // 模拟网络延迟
-      const delay = Math.random() * 300 + 200;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-
-      const mockData = mockResult.data as ApiResult | undefined;
-
-      // 如果 Mock 返回的是错误响应，抛出错误
-      if (mockData?.code !== undefined && mockData?.code !== 0) {
-        const msg = mockData.message ?? "Mock 请求失败";
-        if (mockData.code === 401 && url !== "/auth/login") {
-          userStore.logout();
-          window.location.href = "/login";
-        }
-        message.error(msg);
-        throw new HttpError(mockData.code || 500, msg);
-      }
-
-      if (mockData?.code === 0 && "data" in mockData) {
-        return mockData.data as T;
-      }
-
-      if (mockData?.code !== undefined) {
-        return mockData as T;
-      }
-
-      if (mockData === undefined) {
-        return undefined as T;
-      }
-
-      return mockData as T;
-    }
-
-    // 开发环境下，Mock 未匹配时给出警告
-    if (import.meta.env.DEV) {
-      console.warn(
-        `[Mock] No handler found for ${rest.method || "GET"} ${url}，将发起真实请求`
-      );
-    }
-  }
-
-  // 2. 真实请求
-  const res = await fetch(`${BASE_URL}${url}`, {
-    ...rest,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  // 3. 401 处理
-  if (res.status === 401) {
-    if (url !== "/auth/login") {
-      userStore.logout();
-      window.location.href = "/login";
-    }
-    throw new HttpError(401, url === "/auth/login" ? "用户名或密码错误" : "登录已过期，请重新登录");
-  }
-
-  // 4. 解析响应
-  const data = await res.json();
-
-  // 5. HTTP 状态码错误
-  if (!res.ok) {
-    const msg = data?.message ?? `请求失败 (${res.status})`;
-    message.error(msg);
-    throw new HttpError(res.status, msg);
-  }
-
-  // 6. 业务状态码校验: { code: 0, data, message }
-  if (data.code !== undefined && data.code !== 0) {
-    // 401 业务码也触发登出
-    if (data.code === 401 && url !== "/auth/login") {
-      userStore.logout();
-      window.location.href = "/login";
-    }
-    message.error(data.message ?? "操作失败");
-    throw new Error(data.message ?? "操作失败");
-  }
-
-  return data.data ?? data;
+  return pathWithoutBase.startsWith("/") ? pathWithoutBase : `/${pathWithoutBase}`;
 }
 
-// ──────────────────────────────────────────────
-// ✅ 导出 HTTP 方法
-// ──────────────────────────────────────────────
+function parseBody(data: unknown) {
+  if (typeof data !== "string") return data;
 
-export const http = {
-  get<T = unknown>(url: string, options?: RequestOptions) {
-    return request<T>(url, { ...options, method: "GET" });
+  try {
+    return JSON.parse(data);
+  } catch {
+    return data;
+  }
+}
+
+function findMockHandler(
+  url: string,
+  method: string,
+  body?: unknown,
+  headers?: Record<string, unknown>,
+) {
+  const fullPath = getRequestPath(url);
+  const [pathname, queryString] = fullPath.split("?");
+  const query = new URLSearchParams(queryString || "");
+  const upperMethod = method.toUpperCase();
+  const exactHandler = mockRegistry.get(`${upperMethod}:${pathname}`);
+
+  if (exactHandler) {
+    return {
+      matched: true,
+      data: exactHandler({ url: pathname, method: upperMethod, body, headers, query }),
+    };
+  }
+
+  for (const [key, handler] of mockRegistry) {
+    const separatorIndex = key.indexOf(":");
+    const registeredMethod = key.slice(0, separatorIndex);
+    const pattern = key.slice(separatorIndex + 1);
+
+    if (registeredMethod !== upperMethod || !pattern) continue;
+
+    const regex = new RegExp(
+      `^${pattern.replace(/:[^/]+/g, "([^/]+)").replace(/\*/g, ".*")}$`,
+    );
+
+    if (regex.test(pathname)) {
+      return {
+        matched: true,
+        data: handler({ url: pathname, method: upperMethod, body, headers, query }),
+      };
+    }
+  }
+
+  return { matched: false, data: undefined };
+}
+
+const mockAdapter: AxiosAdapter = async (config) => {
+  const method = config.method || "GET";
+  const headers = config.headers?.toJSON
+    ? config.headers.toJSON()
+    : (config.headers as Record<string, unknown> | undefined);
+  const mockResult = findMockHandler(
+    config.url || "",
+    method,
+    parseBody(config.data),
+    headers,
+  );
+
+  if (!mockResult.matched) {
+    return defaultAdapter(config);
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
+  return {
+    data: mockResult.data,
+    status: 200,
+    statusText: "OK",
+    headers: {},
+    config: config as InternalAxiosRequestConfig,
+    request: {},
+  };
+};
+
+const request = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL,
+  timeout: 15000,
+  headers: { "Content-Type": "application/json" },
+  adapter: USE_MOCK ? mockAdapter : undefined,
+});
+
+request.interceptors.request.use(
+  (config) => {
+    const userStore = useUserStore();
+    if (userStore.token) {
+      config.headers.Authorization = `Bearer ${userStore.token}`;
+    }
+    return config;
   },
-  post<T = unknown>(url: string, body?: unknown, options?: RequestOptions) {
-    return request<T>(url, { ...options, method: "POST", body });
+  (error) => Promise.reject(error),
+);
+
+request.interceptors.response.use(
+  (response: AxiosResponse<ApiResponse>) => {
+    const { code, data, message } = response.data;
+    if (code === 0) {
+      return data;
+    }
+    return Promise.reject(new Error(message || "请求失败"));
   },
-  put<T = unknown>(url: string, body?: unknown, options?: RequestOptions) {
-    return request<T>(url, { ...options, method: "PUT", body });
+  (error) => {
+    if (error.response) {
+      const { status } = error.response;
+      if (status === 401) {
+        window.location.href = "/login";
+      } else {
+        message.error(error.response.data?.message || "网络异常，请稍后重试");
+      }
+    } else {
+      message.error("网络连接失败，请检查网络");
+    }
+    return Promise.reject(error);
   },
-  patch<T = unknown>(url: string, body?: unknown, options?: RequestOptions) {
-    return request<T>(url, { ...options, method: "PATCH", body });
-  },
-  delete<T = unknown>(url: string, options?: RequestOptions) {
-    return request<T>(url, { ...options, method: "DELETE" });
-  },
+);
+
+export function get<T = unknown>(url: string, params?: object): Promise<T> {
+  return request.get(url, { params }) as Promise<T>;
+}
+
+export function post<T = unknown>(url: string, data?: object): Promise<T> {
+  return request.post(url, data) as Promise<T>;
+}
+
+export function put<T = unknown>(url: string, data?: object): Promise<T> {
+  return request.put(url, data) as Promise<T>;
+}
+
+export function del<T = unknown>(url: string, params?: object): Promise<T> {
+  return request.delete(url, { params }) as Promise<T>;
+}
+
+export default {
+  get,
+  post,
+  put,
+  delete: del,
 };

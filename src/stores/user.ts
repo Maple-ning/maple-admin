@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { authApi } from '@/api/auth'
+import { login, getUserInfo as fetchUserInfo, logout as logoutApi } from '@/api/system'
+import type { LoginParams, LoginResult, UserInfo } from '@/types/system'
 import router from '@/router'
 import { usePermissionStore } from './permission'
-import type { LoginParams, LoginResult, UserInfo } from '@/types/auth'
+
 
 export const useUserStore = defineStore('user', () => {
   // ── state ──
@@ -20,7 +21,7 @@ export const useUserStore = defineStore('user', () => {
   const isLoggedIn = computed(() => !!token.value)
 
   // ── actions ──
-  const login = async (params: LoginParams): Promise<LoginResult> => {
+  const loginAction = async (params: LoginParams): Promise<LoginResult> => {
     if (!params.username?.trim() || !params.password?.trim()) {
       const errorMsg = '用户名和密码不能为空'
       error.value = errorMsg
@@ -43,7 +44,7 @@ export const useUserStore = defineStore('user', () => {
     try {
       loading.value = true
       error.value = null
-      const response = await authApi.login({
+      const response = await login({
         username: params.username.trim(),
         password: params.password
       })
@@ -66,7 +67,8 @@ export const useUserStore = defineStore('user', () => {
       }
 
       if (!userInfo) {
-        await getUserInfo()
+        const currentUserInfo = await fetchUserInfo()
+        setUserInfo(currentUserInfo)
       }
 
       return {
@@ -130,14 +132,14 @@ export const useUserStore = defineStore('user', () => {
       throw new Error('未登录')
     }
 
-    const userInfo = await authApi.getUserInfo()
+    const userInfo = await fetchUserInfo()
     setUserInfo(userInfo)
     return userInfo
   }
 
   async function logout() {
     try {
-      await authApi.logout()
+      await logoutApi()
     } finally {
       resetState()
       const permissionStore = usePermissionStore()
@@ -176,7 +178,7 @@ export const useUserStore = defineStore('user', () => {
     roles,
     permissions,
     isLoggedIn,
-    login,
+    loginAction,
     getUserInfo,
     logout,
     resetState,

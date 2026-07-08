@@ -35,7 +35,7 @@ async function handleSubmit() {
       <div class="banner-mask" />
       <img :src="loginBanner" alt="banner" class="banner-img" />
       <div class="banner-content">
-        <h1 class="banner-title">枫叶后台管理系统</h1>
+        <h1 class="banner-title">Maple-Admin</h1>
         <p class="banner-desc">高效 · 智能 · 安全</p>
       </div>
     </div>
@@ -44,7 +44,6 @@ async function handleSubmit() {
     <div class="login-form-wrapper">
       <div class="login-card">
         <h2 class="login-title">欢迎登录</h2>
-        <p class="login-subtitle">Maple Admin System</p>
 
         <a-form
           ref="formRef"
@@ -196,15 +195,8 @@ async function handleSubmit() {
   font-size: 28px;
   font-weight: 600;
   color: #1a1a2e;
-  margin: 0 0 4px;
+  margin-bottom: 40px;
   text-align: center;
-}
-
-.login-subtitle {
-  font-size: 14px;
-  color: #999;
-  text-align: center;
-  margin: 0 0 36px;
 }
 
 .form-footer {

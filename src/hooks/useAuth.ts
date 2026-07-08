@@ -16,7 +16,7 @@ export function useAuth() {
     loading.value = true;
     error.value = "";
     try {
-      const result = await userStore.login({ username, password });
+      const result = await userStore.loginAction({ username, password });
 
       if (!result.success) {
         throw new Error(result.message || "登录失败，请重试");
