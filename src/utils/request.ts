@@ -177,6 +177,7 @@ request.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const { code, data, message } = response.data;
     if (code === 0) {
+      console.log("请求成功，数据是：",data)
       return data;
     }
     return Promise.reject(new Error(message || "请求失败"));

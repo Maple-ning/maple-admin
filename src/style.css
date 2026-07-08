@@ -9,6 +9,10 @@ body {
   box-sizing: border-box;
 }
 
+li {
+  list-style: none;
+}
+
 #app {
   width: 100%;
   max-width: 100%;

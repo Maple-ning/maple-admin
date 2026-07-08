@@ -18,10 +18,18 @@ const browserGlobals = {
 };
 
 const nodeGlobals = {
+  Buffer: "readonly",
   __dirname: "readonly",
+  process: "readonly",
 };
 
 export default [
+  {
+    files: ["vite.config.ts", "mock-server/**/*.ts"],
+    languageOptions: {
+      globals: nodeGlobals,
+    },
+  },
   {
     ignores: ["dist/**", "node_modules/**"],
   },

@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
     plugins: [vue(), authMockServerPlugin(env.VITE_USE_MOCK === "true")],
     server: {
       port: 8088,
-      strictPort: true, // 端口被占用时退出
+      strictPort: true,
     },
     resolve: {
       alias: {
