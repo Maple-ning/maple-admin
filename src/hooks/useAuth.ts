@@ -35,15 +35,13 @@ export function useAuth() {
 
   async function loadUserAndRoutes() {
     await userStore.getUserInfo();
-    const accessRoutes = await permissionStore.generateRoutes(
-      userStore.roles,
-      userStore.permissions,
-    );
+    const accessRoutes = await permissionStore.generateRoutes()
     accessRoutes.forEach((r) => router.addRoute(r));
   }
 
   async function logout() {
     await userStore.logout();
+    await router.push('/login')
   }
 
   return {

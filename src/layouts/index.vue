@@ -1,62 +1,30 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import AdminHeader from './components/AdminHeader.vue'
-import { ref } from 'vue'
+import AdminSidebar from './components/AdminSidebar.vue'
 
-const selectedKeys2 = ref<string[]>(['1'])
-const openKeys = ref<string[]>(['sub1'])
+const route = useRoute()
+
+const breadcrumbs = computed(() => {
+  return route.matched
+    .filter((r) => r.meta?.title)
+    .map((r) => ({ title: r.meta.title as string, path: r.path }))
+})
 </script>
 
 <template>
   <a-layout class="admin-layout">
     <admin-header />
     <a-layout class="admin-basic">
-      <a-layout-sider class="admin-sider" width="200" style="background: #fff">
-        <a-menu v-model:selectedKeys="selectedKeys2" v-model:openKeys="openKeys" mode="inline" :style="{ height: '100%', borderRight: 0 }">
-          <a-sub-menu key="sub1">
-            <template #title>
-              <span>
-                <user-outlined />
-                subnav 1
-              </span>
-            </template>
-            <a-menu-item key="1">option1</a-menu-item>
-            <a-menu-item key="2">option2</a-menu-item>
-            <a-menu-item key="3">option3</a-menu-item>
-            <a-menu-item key="4">option4</a-menu-item>
-          </a-sub-menu>
-          <a-sub-menu key="sub2">
-            <template #title>
-              <span>
-                <laptop-outlined />
-                subnav 2
-              </span>
-            </template>
-            <a-menu-item key="5">option5</a-menu-item>
-            <a-menu-item key="6">option6</a-menu-item>
-            <a-menu-item key="7">option7</a-menu-item>
-            <a-menu-item key="8">option8</a-menu-item>
-          </a-sub-menu>
-          <a-sub-menu key="sub3">
-            <template #title>
-              <span>
-                <notification-outlined />
-                subnav 3
-              </span>
-            </template>
-            <a-menu-item key="9">option9</a-menu-item>
-            <a-menu-item key="10">option10</a-menu-item>
-            <a-menu-item key="11">option11</a-menu-item>
-            <a-menu-item key="12">option12</a-menu-item>
-          </a-sub-menu>
-        </a-menu>
-      </a-layout-sider>
+      <admin-sidebar />
       <a-layout class="admin-main">
         <a-breadcrumb style="margin: 16px 0">
-          <a-breadcrumb-item>Home</a-breadcrumb-item>
-          <a-breadcrumb-item>List</a-breadcrumb-item>
-          <a-breadcrumb-item>App</a-breadcrumb-item>
+          <a-breadcrumb-item v-for="item in breadcrumbs" :key="item.path">
+            {{ item.title }}
+          </a-breadcrumb-item>
         </a-breadcrumb>
-        <a-layout-content :style="{ background: '#fff', padding: '24px', margin: 0, minHeight: '280px' }">Content</a-layout-content>
+        <router-view />
       </a-layout>
     </a-layout>
   </a-layout>

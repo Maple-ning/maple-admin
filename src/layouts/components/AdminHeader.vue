@@ -1,45 +1,52 @@
 <script setup lang="ts">
-import type { Menu } from '@/types/menu'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { reactive, computed } from 'vue'
+import { useUserStore } from '@/stores/user'
+import { usePermissionStore } from '@/stores/permission'
+import { getIcon } from '@/utils/iconMap'
 import {
-  AppstoreOutlined,
-  BellOutlined,
-  DashboardOutlined,
   SearchOutlined,
+  BellOutlined,
   SettingOutlined,
-  UserOutlined
+  DownOutlined,
 } from '@ant-design/icons-vue'
-
-const headerMenu = reactive<Menu[]>([
-  { path: '/dashboard', name: 'dashboard', title: '仪表盘', icon: 'dashboard' },
-  { path: '/system', name: 'system', title: '系统管理', icon: 'system' },
-  { path: '/user', name: 'user', title: '用户中心', icon: 'user' }
-])
-
-const menuIconMap = {
-  dashboard: DashboardOutlined,
-  system: AppstoreOutlined,
-  user: UserOutlined
-}
+import type { MenuProps } from 'ant-design-vue'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
+const permissionStore = usePermissionStore()
 
-// 获取当前路由的第一个path，用户高亮当前一级菜单
-const currentFirstLevelPath = computed(() => {
-  const segments = route.path.split('/').filter(Boolean)
-  return segments.length > 0 ? segments[0] : ''
+// 获取顶级菜单（parentId === 0）
+const headerMenus = computed(() => {
+  return permissionStore.menuTree.filter((menu: any) => menu.parentId === 0)
 })
 
-// 获取当前的path，用于生成动态高亮class
-const currentActiveKey = computed(() => {
-  const matchedItem = headerMenu.find((item) => item.path.replace(/^\//, '') === currentFirstLevelPath.value)
-  return matchedItem ? matchedItem.path : ''
+// 当前激活的一级菜单路径
+const activeMenuPath = computed(() => {
+  const topRoute = route.matched[0]
+  return topRoute?.path || ''
 })
 
-const handleMenuClick = (item: Menu) => {
-  router.push(item.path)
+// 点击菜单跳转
+const handleMenuClick = (menu: any) => {
+  if (menu.redirect) {
+    router.push(menu.redirect)
+  } else if (menu.children && menu.children.length > 0) {
+    // 跳转到第一个子菜单
+    const firstChild = menu.children[0]
+    router.push(firstChild.path)
+  } else {
+    router.push(menu.path)
+  }
+}
+
+// 用户下拉菜单点击
+const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
+  if (key === 'logout') {
+    userStore.logout()
+    router.push('/login')
+  }
 }
 </script>
 
@@ -56,12 +63,12 @@ const handleMenuClick = (item: Menu) => {
     </div>
     <ul class="admin-main-menu">
       <li
-        v-for="menu in headerMenu"
+        v-for="menu in headerMenus"
         :key="menu.path"
-        :class="['admin-menu-item', { 'active-menu-item': currentActiveKey === menu.path }]"
+        :class="['admin-menu-item', { 'active-menu-item': activeMenuPath === menu.path }]"
         @click="handleMenuClick(menu)"
       >
-        <component :is="menuIconMap[menu.icon as keyof typeof menuIconMap]" class="menu-icon" />
+        <component :is="getIcon(menu.icon)" class="menu-icon" v-if="menu.icon" />
         <span>{{ menu.title }}</span>
       </li>
     </ul>
@@ -77,7 +84,20 @@ const handleMenuClick = (item: Menu) => {
       </button>
       <div class="admin-user">
         <span class="admin-avatar">M</span>
-        <span class="admin-username">管理员</span>
+        <a-dropdown :trigger="['click']">
+          <a class="ant-dropdown-link" @click.prevent>
+            {{ userStore.username || '管理员' }}
+            <DownOutlined />
+          </a>
+          <template #overlay>
+            <a-menu @click="handleUserMenuClick">
+              <a-menu-item key="profile">个人中心</a-menu-item>
+              <a-menu-item key="settings">设置</a-menu-item>
+              <a-menu-divider />
+              <a-menu-item key="logout">登出</a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
       </div>
     </div>
   </nav>

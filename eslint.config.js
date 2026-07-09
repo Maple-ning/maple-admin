@@ -25,7 +25,7 @@ const nodeGlobals = {
 
 export default [
   {
-    files: ["vite.config.ts", "mock-server/**/*.ts"],
+    files: ["vite.config.ts"],
     languageOptions: {
       globals: nodeGlobals,
     },

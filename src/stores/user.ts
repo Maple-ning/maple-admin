@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { login, getUserInfo as fetchUserInfo, logout as logoutApi } from '@/api/system'
 import type { LoginParams, LoginResult, UserInfo } from '@/types/system'
-import router from '@/router'
 import { usePermissionStore } from './permission'
 
 
@@ -144,7 +143,6 @@ export const useUserStore = defineStore('user', () => {
       resetState()
       const permissionStore = usePermissionStore()
       permissionStore.resetRoutes()
-      router.push('/login')
     }
   }
 

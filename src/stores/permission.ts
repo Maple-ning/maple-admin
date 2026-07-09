@@ -1,51 +1,45 @@
-import { defineStore } from "pinia";
-import { ref } from "vue";
-import type { RouteRecordRaw } from "vue-router";
-import { asyncRoutes } from "@/router/asyncRoutes";
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import type { RouteRecordRaw } from 'vue-router'
+import router, { transformMenuToRoutes } from '@/router'
+import { getMenuTree } from "@/api/system"
+import type { Menu } from "@/types/menu"
 
-export const usePermissionStore = defineStore("permission", () => {
-  const routes = ref<RouteRecordRaw[]>([]);
+export const usePermissionStore = defineStore('permission', () => {
+  const routes = ref<RouteRecordRaw[]>([])
+  const menuTree = ref<Menu[]>([])
 
-  // 根据角色和权限过滤路由
-  function filterRoutes(roles: string[], permissions: string[]) {
-    const filter = (list: RouteRecordRaw[]): RouteRecordRaw[] => {
-      return list
-        .filter((route) => {
-          const meta = route.meta;
-          if (meta?.requiresAuth) {
-            // 角色匹配
-            if (meta.roles && !meta.roles.some((role) => roles.includes(role))) {
-              return false;
-            }
-            // 权限码匹配
-            if (
-              meta.permissions &&
-              !meta.permissions.some((p) => permissions.includes(p))
-            ) {
-              return false;
-            }
-          }
-          return true;
-        })
-        .map((route) => {
-          if (route.children) {
-            route.children = filter(route.children);
-          }
-          return route;
-        });
-    };
-    return filter(asyncRoutes);
-  }
-
-  async function generateRoutes(roles: string[], permissions: string[]) {
-    const accessedRoutes = filterRoutes(roles, permissions);
-    routes.value = accessedRoutes;
-    return accessedRoutes;
+  async function generateRoutes() {
+    try {
+      const data = await getMenuTree()
+      // if (data.code !== 0) {
+      //   throw new Error(data.message || '获取菜单失败')
+      // }
+      const menus = data as unknown as Menu[]
+      menuTree.value = menus
+      const routesArray = transformMenuToRoutes(menus)
+      console.log("routesArray",routesArray)
+      routes.value = routesArray
+      return routesArray
+    } catch (error) {
+      console.error('生成动态路由失败:', error)
+      throw error
+    }
   }
 
   function resetRoutes() {
-    routes.value = [];
+    routes.value.forEach((route) => {
+      if (route.name) {
+        try {
+          router.removeRoute(route.name)
+        } catch (_) {
+          // 忽略
+        }
+      }
+    })
+    routes.value = []
+    menuTree.value = []
   }
 
-  return { routes, generateRoutes, resetRoutes };
-});
+  return { routes, menuTree, generateRoutes, resetRoutes }
+})

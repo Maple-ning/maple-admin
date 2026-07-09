@@ -1,6 +1,13 @@
 export interface Menu {
-  path: string;
-  name: string;
-  title: string;
-  icon: string;
+  id: number
+  parentId: number
+  title: string
+  path: string
+  component: string
+  icon?: string
+  redirect?: string
+  hidden?: boolean
+  sort?: number
+  perms?: string
+  children?: Menu[]
 }

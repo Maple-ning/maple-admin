@@ -1,68 +1,97 @@
 # Mock 接口维护说明
 
-项目开发环境通过 `VITE_USE_MOCK=true` 开启 Mock。入口在 `src/mock/index.ts`，由 `src/main.ts` 在应用挂载前加载，确保首屏请求前接口已经注册完成。
+## 概述
+
+项目通过 `VITE_USE_MOCK=true`（在 `.env.development` 中配置）开启 Mock。
+**仅在 dev 环境生效**，打包后自动走真实服务器接口，无需手动切换。
+
+## 核心思路
+
+> **一个模块一个文件，数据 + 接口写在一起。**
+
+打开 `src/mock/modules/user.ts` 看一眼就懂了：
+最上面是数据定义，下面是 `registerMock()` 注册的接口，所有相关的东西都在同一个文件里。
 
 ## 目录约定
 
-- `src/mock/index.ts`：统一注册入口，只负责调用各模块的 `registerXxxMocks`。
-- `src/mock/handlers/`：按业务模块放接口，例如 `auth.ts`、`user.ts`。
-- `src/mock/data/`：按业务模块放接口需要复用或持久变更的默认数据，例如 `user.ts`、`menu.ts`、`dict.ts`。
-- `src/utils/request.ts`：提供 `registerMock`、`mockResponse`、`mockError`、`mockPaginatedResponse`。
-
-## 新增接口步骤
-
-1. 如果接口需要默认数据，先在 `src/mock/data/` 新建或扩展同名业务数据文件，例如用户数据放 `data/user.ts`。
-2. 在 `src/mock/handlers/` 中按同名业务模块新增 handler 文件，或追加到已有业务模块。
-3. 使用 `registerMock(method, url, handler)` 注册接口。
-4. 在 `src/mock/index.ts` 引入并调用新的 `registerXxxMocks()`。
-5. 保持 URL 与 `src/api/` 中真实接口路径一致。
-
-## 示例
-
-```ts
-// src/mock/data/product.ts
-export const mockProducts = [
-  { id: 1, name: "示例商品", status: "enabled" },
-];
+```
+src/mock/
+  index.ts             ← 入口，自动加载 modules/ 下所有文件（无需手动引入）
+  modules/
+    user.ts            ← 用户 & 认证的数据 + 接口
+    menu.ts            ← 菜单的数据 + 接口
+    ...                 ← 继续添加新模块
 ```
 
-```ts
-// src/mock/handlers/product.ts
-import { mockProducts } from "../data/product";
-import { mockResponse, registerMock } from "@/utils/request";
+## 新增接口（只需两步）
 
-export function registerProductMocks() {
-  registerMock("GET", "/product/list", () => {
-    return mockResponse(mockProducts);
-  });
-}
-```
+### 第 1 步
+
+在 `src/mock/modules/` 下新建文件，比如 `product.ts`：
 
 ```ts
-// src/mock/index.ts
-import { registerProductMocks } from "./handlers/product";
+import { registerMock, mockResponse, mockError } from '@/utils/request'
 
-registerProductMocks();
+// ── 数据定义 ──────────────────────────
+let products = [
+  { id: 1, name: '商品A', price: 99 },
+  { id: 2, name: '商品B', price: 199 },
+]
+
+// ── 接口注册 ──────────────────────────
+registerMock('GET', '/product/list', ({ query }) => {
+  const keyword = query?.get('keyword') || ''
+  const list = keyword
+    ? products.filter(p => p.name.includes(keyword))
+    : products
+  return mockResponse(list)
+})
+
+registerMock('POST', '/product', ({ body }) => {
+  const newProduct = { id: Date.now(), ...body }
+  products.push(newProduct)
+  return mockResponse(newProduct, 0, '创建成功')
+})
+
+registerMock('DELETE', '/product/:id', ({ url }) => {
+  const id = Number(url.split('/').pop())
+  products = products.filter(p => p.id !== id)
+  return mockResponse(null, 0, '删除成功')
+})
 ```
+
+### 第 2 步
+
+**不需要做任何事** —— `src/mock/index.ts` 会自动发现并加载所有 `modules/*.ts` 文件。
 
 ## 返回格式
 
-正常响应统一使用：
+| 工具函数 | 用途 | 示例 |
+|---|---|---|
+| `mockResponse(data)` | 正常返回 | `mockResponse({ id: 1 })` |
+| `mockResponse(data, code, msg)` | 带状态码 | `mockResponse(null, 0, '成功')` |
+| `mockError(msg, code)` | 错误返回 | `mockError('参数错误', 400)` |
+| `mockPaginatedResponse(list, page, pageSize)` | 分页返回 | `mockPaginatedResponse(users, 1, 10)` |
+
+请求层（`src/utils/request.ts`）会自动解包 `{ code, data, message }`，业务代码只拿到 `data`。
+
+## 核心 API
 
 ```ts
-mockResponse(data);
+// 精确匹配
+registerMock('GET', '/user/list', handler)
+
+// 动态路由参数（:id 匹配任意数字）
+registerMock('GET', '/user/:id', handler)
+registerMock('PUT', '/user/:id', handler)
+
+// 批量操作
+registerMock('DELETE', '/user/batch', handler)
 ```
 
-错误响应统一使用：
+## 环境说明
 
-```ts
-mockError("错误信息", 400);
-```
-
-分页响应统一使用：
-
-```ts
-mockResponse(mockPaginatedResponse(list, page, pageSize));
-```
-
-请求层会自动解包 `{ code, data, message }`，业务代码拿到的是 `data` 字段。
+| 环境 | VITE_USE_MOCK | 行为 |
+|---|---|---|
+| `npm run dev` | `true` | Mock 生效，请求被 axios 适配器拦截 |
+| `npm run build` | `false` | Mock 代码被 tree-shake 移除，请求发往真实服务器 |

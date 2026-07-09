@@ -1,12 +1,12 @@
-// src/types/router.d.ts
 import "vue-router";
+import type { Component } from 'vue'
 
 declare module "vue-router" {
   interface RouteMeta {
     title?: string;
-    requiresAuth: boolean;
+    requiresAuth?: boolean;
     roles?: string[];
     permissions?: string[];
-    icon?: string;
+    icon?: string | Component
   }
 }

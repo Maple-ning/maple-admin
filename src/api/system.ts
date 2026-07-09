@@ -1,5 +1,6 @@
 import { get, post } from '@/utils/request'
 import type { LoginParams, LoginData, UserInfo } from '@/types/system'
+import type { Menu } from "@/types/menu"
 
 /**
  * @description 登录接口
@@ -20,4 +21,11 @@ export const getUserInfo = (): Promise<UserInfo> => {
  */
 export const logout = () => {
   return post('/auth/logout')
+}
+
+/**
+ * @description 获取菜单
+ */
+export function getMenuTree() {
+  return get<Menu[]>('/menu/user-menus')
 }
