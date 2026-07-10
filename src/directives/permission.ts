@@ -7,6 +7,8 @@ export const permission: Directive = {
     const userStore = useUserStore();
 
     if (value && Array.isArray(value)) {
+      if (userStore.roles.includes("admin") || userStore.permissions.includes("*")) return;
+
       const hasPermission = value.some((v) =>
         userStore.permissions.includes(v),
       );

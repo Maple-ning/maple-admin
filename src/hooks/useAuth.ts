@@ -2,6 +2,7 @@ import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStore } from "@/stores/user";
 import { usePermissionStore } from "@/stores/permission";
+import { ensureNotFoundRoute } from "@/router";
 
 export function useAuth() {
   const router = useRouter();
@@ -24,7 +25,11 @@ export function useAuth() {
 
       await loadUserAndRoutes();
       const redirect = (route.query.redirect as string) ?? "/";
-      await router.push(redirect);
+      if (!permissionStore.defaultPath) {
+        await router.replace("/403");
+        return;
+      }
+      await router.push(redirect === "/" ? permissionStore.defaultPath : redirect);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "登录失败，请重试";
       error.value = msg;
@@ -37,6 +42,7 @@ export function useAuth() {
     await userStore.getUserInfo();
     const accessRoutes = await permissionStore.generateRoutes()
     accessRoutes.forEach((r) => router.addRoute(r));
+    ensureNotFoundRoute();
   }
 
   async function logout() {

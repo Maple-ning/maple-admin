@@ -124,6 +124,10 @@ async function handleSubmit() {
   width: 100%;
   height: 100vh;
   overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(187, 247, 208, 0.52), transparent 32%),
+    radial-gradient(circle at 80% 0%, rgba(186, 230, 253, 0.58), transparent 28%),
+    #f6fbfa;
 }
 
 // ── 左侧品牌区 ──
@@ -141,7 +145,7 @@ async function handleSubmit() {
   .banner-mask {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(24, 85, 205, 0.65) 0%, rgba(12, 36, 97, 0.75) 100%);
+    background: linear-gradient(135deg, rgba(14, 165, 163, 0.58) 0%, rgba(56, 189, 248, 0.46) 100%);
     z-index: 1;
   }
 
@@ -160,7 +164,7 @@ async function handleSubmit() {
     font-weight: 700;
     letter-spacing: 6px;
     margin: 0 0 16px;
-    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 2px 14px rgba(15, 118, 110, 0.24);
   }
 
   .banner-desc {
@@ -178,23 +182,25 @@ async function handleSubmit() {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: #f5f7fa;
+  background: rgba(255, 255, 255, 0.42);
   padding: 40px;
+  backdrop-filter: blur(12px);
 }
 
 .login-card {
   width: 100%;
   max-width: 420px;
-  background: #fff;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(97, 151, 162, 0.16);
+  border-radius: 10px;
   padding: 48px 40px 32px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 20px 50px rgba(31, 102, 117, 0.12);
 }
 
 .login-title {
   font-size: 28px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #243447;
   margin-bottom: 40px;
   text-align: center;
 }
@@ -207,7 +213,7 @@ async function handleSubmit() {
 }
 
 .forgot-link {
-  color: #165df5;
+  color: #0ea5a3;
   cursor: pointer;
 }
 
@@ -216,12 +222,13 @@ async function handleSubmit() {
   font-size: 16px;
   letter-spacing: 4px;
   border-radius: 8px;
-  background: #165df5;
-  border-color: #165df5;
+  background: linear-gradient(135deg, #38bdf8, #34d399);
+  border-color: transparent;
+  box-shadow: 0 10px 24px rgba(52, 211, 153, 0.24);
 
   &:hover {
-    background: #4080ff;
-    border-color: #4080ff;
+    background: linear-gradient(135deg, #0ea5e9, #10b981);
+    border-color: transparent;
   }
 }
 
@@ -232,7 +239,7 @@ async function handleSubmit() {
 .login-copyright {
   margin-top: 24px;
   font-size: 12px;
-  color: #bbb;
+  color: #8aa0ad;
   text-align: center;
 }
 

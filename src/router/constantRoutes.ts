@@ -14,13 +14,15 @@ export const constantRoutes: RouteRecordRaw[] = [
     meta: { title: "404", requiresAuth: false },
   },
   {
-    path: "/",
-    redirect: "/dashboard",
-    meta: { requiresAuth: true },
+    path: "/403",
+    name: "403",
+    component: () => import("@/views/Error-page/403.vue"),
+    meta: { title: "403", requiresAuth: true },
   },
   {
-    path: "/:pathMatch(.*)*",
-    redirect: "/404",
-    meta: { requiresAuth: false },
+    path: "/",
+    name: "Root",
+    component: { render: () => null },
+    meta: { requiresAuth: true },
   },
 ];

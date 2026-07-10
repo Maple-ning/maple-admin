@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 import { getIcon } from '@/utils/iconMap'
+import { isPathInMenu } from '@/utils/permission'
 import {
   SearchOutlined,
   BellOutlined,
@@ -11,6 +12,7 @@ import {
   DownOutlined,
 } from '@ant-design/icons-vue'
 import type { MenuProps } from 'ant-design-vue'
+import type { Menu } from '@/types/menu'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,18 +20,19 @@ const userStore = useUserStore()
 const permissionStore = usePermissionStore()
 
 // 获取顶级菜单（parentId === 0）
-const headerMenus = computed(() => {
-  return permissionStore.menuTree.filter((menu: any) => menu.parentId === 0)
-})
+const headerMenus = computed<Menu[]>(() => permissionStore.menuTree.filter((menu) => menu.parentId === 0 && !menu.hidden))
 
 // 当前激活的一级菜单路径
 const activeMenuPath = computed(() => {
-  const topRoute = route.matched[0]
-  return topRoute?.path || ''
+  const activeMenu = headerMenus.value.find((menu) => isPathInMenu(menu, route.path))
+  return activeMenu?.path || ''
 })
 
+const canAccessProfile = computed(() => userStore.hasPermission('account:profile'))
+const canAccessSettings = computed(() => userStore.hasPermission('account:settings'))
+
 // 点击菜单跳转
-const handleMenuClick = (menu: any) => {
+const handleMenuClick = (menu: Menu) => {
   if (menu.redirect) {
     router.push(menu.redirect)
   } else if (menu.children && menu.children.length > 0) {
@@ -42,11 +45,14 @@ const handleMenuClick = (menu: any) => {
 }
 
 // 用户下拉菜单点击
-const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
+const handleUserMenuClick: MenuProps['onClick'] = async ({ key }) => {
   if (key === 'logout') {
-    userStore.logout()
-    router.push('/login')
+    await userStore.logout()
+    router.replace('/login')
+    return
   }
+  if (key === 'profile') router.push('/account/profile')
+  if (key === 'settings') router.push('/account/settings')
 }
 </script>
 
@@ -91,8 +97,8 @@ const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
           </a>
           <template #overlay>
             <a-menu @click="handleUserMenuClick">
-              <a-menu-item key="profile">个人中心</a-menu-item>
-              <a-menu-item key="settings">设置</a-menu-item>
+              <a-menu-item key="profile" :disabled="!canAccessProfile">个人中心</a-menu-item>
+              <a-menu-item key="settings" :disabled="!canAccessSettings">设置</a-menu-item>
               <a-menu-divider />
               <a-menu-item key="logout">登出</a-menu-item>
             </a-menu>
@@ -107,15 +113,17 @@ const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
 .admin-header {
   display: flex;
   align-items: center;
-  height: 64px;
-  padding: 0 clamp(20px, 4vw, 60px);
-  background: linear-gradient(135deg, #ffffff 0%, #f6f8fb 52%, #eef5f3 100%);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  flex: 0 0 66px;
+  height: 66px;
+  padding: 0 clamp(18px, 3vw, 42px);
+  background: rgba(255, 255, 255, 0.78);
+  border-bottom: 1px solid var(--maple-border);
+  box-shadow: 0 10px 30px rgba(31, 102, 117, 0.06);
+  backdrop-filter: blur(18px);
   .admin-brand {
     display: flex;
     align-items: center;
-    width: 220px;
+    width: 230px;
     height: 100%;
     min-width: 180px;
     gap: 12px;
@@ -124,13 +132,13 @@ const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
     overflow: hidden;
-    background: #ffffff;
-    border: 1px solid rgba(220, 38, 38, 0.14);
-    border-radius: 12px;
-    box-shadow: 0 10px 24px rgba(216, 30, 6, 0.14);
+    background: linear-gradient(135deg, #ffffff, #e9fbf7);
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    border-radius: 10px;
+    box-shadow: 0 10px 24px rgba(14, 165, 163, 0.14);
     img {
       width: 26px;
       height: 26px;
@@ -140,7 +148,7 @@ const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
   .admin-brand-text {
     display: flex;
     align-items: baseline;
-    color: #132238;
+    color: var(--maple-text);
     font-size: 18px;
     line-height: 1;
     white-space: nowrap;
@@ -149,7 +157,7 @@ const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
     }
     span {
       margin-left: 4px;
-      color: #d81e06;
+      color: var(--maple-primary-strong);
       font-weight: 700;
     }
   }
@@ -159,7 +167,7 @@ const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     min-width: 0;
     margin: 0;
     padding: 10px 20px;
@@ -167,11 +175,11 @@ const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 42px;
+      height: 40px;
       gap: 8px;
       font-weight: 500;
-      padding: 0 24px;
-      color: #4a5a72;
+      padding: 0 22px;
+      color: #52677a;
       cursor: pointer;
       border: 1px solid transparent;
       border-radius: 8px;
@@ -184,23 +192,23 @@ const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
         font-size: 16px;
       }
       &:hover {
-        color: #132238;
-        background: rgba(255, 255, 255, 0.72);
+        color: var(--maple-primary-strong);
+        background: rgba(236, 253, 245, 0.8);
         transform: translateY(-1px);
       }
     }
     .active-menu-item {
-      background: #ffffff;
-      color: #d81e06;
-      border-color: rgba(216, 30, 6, 0.12);
-      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+      background: linear-gradient(135deg, #ecfeff, #ecfdf5);
+      color: var(--maple-primary-strong);
+      border-color: rgba(45, 212, 191, 0.28);
+      box-shadow: 0 10px 24px rgba(20, 184, 166, 0.12);
     }
   }
   .admin-actions {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    width: 260px;
+    width: 270px;
     height: 100%;
     gap: 10px;
   }
@@ -212,19 +220,19 @@ const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
     width: 36px;
     height: 36px;
     padding: 0;
-    color: #52627a;
+    color: #52677a;
     cursor: pointer;
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.76);
+    border: 1px solid var(--maple-border);
     border-radius: 8px;
     transition:
       color 0.2s ease,
       border-color 0.2s ease,
       box-shadow 0.2s ease;
     &:hover {
-      color: #d81e06;
-      border-color: rgba(216, 30, 6, 0.18);
-      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+      color: var(--maple-primary-strong);
+      border-color: rgba(45, 212, 191, 0.32);
+      box-shadow: 0 8px 18px rgba(20, 184, 166, 0.12);
     }
     &.has-dot::after {
       position: absolute;
@@ -233,7 +241,7 @@ const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
       width: 7px;
       height: 7px;
       content: '';
-      background: #d81e06;
+      background: #34d399;
       border: 2px solid #ffffff;
       border-radius: 50%;
     }
@@ -244,9 +252,9 @@ const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
     height: 40px;
     gap: 8px;
     padding: 0 12px 0 6px;
-    color: #132238;
-    background: rgba(255, 255, 255, 0.76);
-    border: 1px solid rgba(15, 23, 42, 0.08);
+    color: var(--maple-text);
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid var(--maple-border);
     border-radius: 8px;
   }
   .admin-avatar {
@@ -258,7 +266,7 @@ const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
     color: #ffffff;
     font-size: 13px;
     font-weight: 700;
-    background: linear-gradient(135deg, #d81e06, #f59e0b);
+    background: linear-gradient(135deg, #38bdf8, #34d399);
     border-radius: 8px;
   }
   .admin-username {

@@ -3,11 +3,14 @@ import { ref } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import router, { transformMenuToRoutes } from '@/router'
 import { getMenuTree } from "@/api/system"
-import type { Menu } from "@/types/menu"
+import { useUserStore } from './user'
+import { filterMenusByPermission, getFirstAccessiblePath } from '@/utils/permission'
+import type { Menu } from '@/types/menu'
 
 export const usePermissionStore = defineStore('permission', () => {
   const routes = ref<RouteRecordRaw[]>([])
   const menuTree = ref<Menu[]>([])
+  const defaultPath = ref('')
 
   async function generateRoutes() {
     try {
@@ -15,8 +18,13 @@ export const usePermissionStore = defineStore('permission', () => {
       // if (data.code !== 0) {
       //   throw new Error(data.message || '获取菜单失败')
       // }
-      const menus = data as unknown as Menu[]
+      const userStore = useUserStore()
+      const menus = filterMenusByPermission(data as Menu[], {
+        roles: userStore.roles,
+        permissions: userStore.permissions,
+      })
       menuTree.value = menus
+      defaultPath.value = getFirstAccessiblePath(menus)
       const routesArray = transformMenuToRoutes(menus)
       console.log("routesArray",routesArray)
       routes.value = routesArray
@@ -37,9 +45,13 @@ export const usePermissionStore = defineStore('permission', () => {
         }
       }
     })
+    if (router.hasRoute('NotFound')) {
+      router.removeRoute('NotFound')
+    }
     routes.value = []
     menuTree.value = []
+    defaultPath.value = ''
   }
 
-  return { routes, menuTree, generateRoutes, resetRoutes }
+  return { routes, menuTree, defaultPath, generateRoutes, resetRoutes }
 })

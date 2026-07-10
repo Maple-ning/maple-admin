@@ -25,9 +25,20 @@ export function transformMenuToRoutes(menus: Menu[]): RouteRecordRaw[] {
     return () => loader().then((mod) => (mod.default || mod) as Component)
   }
 
-  return menus.map((menu) => {
+  const normalizeChildPath = (path: string, parentPath = '') => {
+    if (!parentPath || !path.startsWith('/')) return path
+
+    const normalizedParent = parentPath.replace(/\/$/, '')
+    if (path === normalizedParent) return ''
+    if (path.startsWith(`${normalizedParent}/`)) {
+      return path.slice(normalizedParent.length + 1)
+    }
+    return path.replace(/^\//, '')
+  }
+
+  const createRoutes = (menuList: Menu[], parentPath = ''): RouteRecordRaw[] => menuList.map((menu) => {
     const route: RouteRecordRaw = {
-      path: menu.path,
+      path: normalizeChildPath(menu.path, parentPath),
       name: `${menu.title.replace(/\s/g, '')}_${menu.id}`,
       redirect: menu.redirect || undefined,
       children: [],
@@ -49,11 +60,25 @@ export function transformMenuToRoutes(menus: Menu[]): RouteRecordRaw[] {
     }
 
     if (menu.children && menu.children.length) {
-      route.children = transformMenuToRoutes(menu.children)
+      route.children = createRoutes(menu.children, menu.path)
     }
 
     return route
   })
+
+  return createRoutes(menus)
+}
+
+const notFoundRoute: RouteRecordRaw = {
+  path: '/:pathMatch(.*)*',
+  redirect: '/404',
+  meta: { requiresAuth: false },
+}
+
+export function ensureNotFoundRoute() {
+  if (!router.hasRoute('NotFound')) {
+    router.addRoute({ ...notFoundRoute, name: 'NotFound' })
+  }
 }
 
 const router = createRouter({
@@ -85,6 +110,10 @@ router.beforeEach(async (to, _from, next) => {
 
   // 动态路由已加载 → 直接放行
   if (permissionStore.routes.length > 0) {
+    if (to.path === '/') {
+      next(permissionStore.defaultPath || '/403')
+      return
+    }
     next()
     return
   }
@@ -94,6 +123,17 @@ router.beforeEach(async (to, _from, next) => {
     await userStore.getUserInfo()
     const accessRoutes = await permissionStore.generateRoutes()
     accessRoutes.forEach((route) => router.addRoute(route))
+    ensureNotFoundRoute()
+
+    if (!permissionStore.defaultPath) {
+      next('/403')
+      return
+    }
+
+    if (to.path === '/') {
+      next({ path: permissionStore.defaultPath, replace: true })
+      return
+    }
 
     // addRoute 后当前导航已解析，需重新触发以匹配新路由
     next({ ...to, replace: true })
