@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import router, { transformMenuToRoutes } from '@/router'
-import { getMenuTree } from "@/api/system"
+import { getMenuTree } from '@/api/system/menu'
 import { useUserStore } from './user'
 import { filterMenusByPermission, getFirstAccessiblePath } from '@/utils/permission'
 import type { Menu } from '@/types/menu'
@@ -26,7 +26,6 @@ export const usePermissionStore = defineStore('permission', () => {
       menuTree.value = menus
       defaultPath.value = getFirstAccessiblePath(menus)
       const routesArray = transformMenuToRoutes(menus)
-      console.log("routesArray",routesArray)
       routes.value = routesArray
       return routesArray
     } catch (error) {

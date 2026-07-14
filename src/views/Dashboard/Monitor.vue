@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const services = [
-  { name: 'Mock 服务', status: '运行中', latency: '23ms' },
+  { name: 'JSON API 服务', status: '运行中', latency: '23ms' },
   { name: '权限守卫', status: '正常', latency: '4ms' },
   { name: '动态路由', status: '正常', latency: '8ms' },
 ]

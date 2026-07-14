@@ -1,0 +1,120 @@
+// ============================================
+// 1. 全局自定义滚动条（跨浏览器统一）
+// ============================================
+// Firefox
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--maple-scrollbar-thumb) var(--maple-scrollbar-track);
+}
+
+// WebKit (Chrome, Edge, Safari)
+*::-webkit-scrollbar {
+  width: var(--maple-scrollbar-size);
+  height: var(--maple-scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--maple-scrollbar-track);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 40px;
+  background: linear-gradient(180deg, rgba(97, 151, 162, 0.34), rgba(14, 165, 163, 0.42));
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.52), var(--maple-scrollbar-thumb-hover));
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+// ============================================
+// 2. 工具类（可根据项目需求扩充）
+// ============================================
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// 页面容器（根节点）
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+// 搜索栏（固定顶部）
+.page-search {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  background: #fff;
+  margin-bottom: 10px;
+  border-radius: 8px;
+}
+
+// 主体区域（表格 + 分页的父容器）
+.page-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; // 核心：防止 flex 溢出
+  overflow: hidden;
+  background: #fff;
+  border-radius: 8px;
+}
+
+// 表格容器（自动撑满 body 的剩余空间）
+.page-table {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+
+  // 🔥 Ant Design 高度穿透：让表格内部滚动生效
+  .ant-table-wrapper {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    .ant-spin-nested-loading,
+    .ant-spin-container,
+    .ant-table,
+    .ant-table-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .ant-table-container {
+      .ant-table-body {
+        flex: 1;
+        overflow: auto !important; // 滚动条出现在这里
+      }
+    }
+  }
+}
+
+// 分页栏（固定在底部）
+.page-pagination {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  display: flex;
+  justify-content: flex-end; // 右对齐，如需左对齐可覆盖
+}

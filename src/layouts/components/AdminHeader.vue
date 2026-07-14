@@ -3,13 +3,15 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
-import { getIcon } from '@/utils/iconMap'
-import { isPathInMenu } from '@/utils/permission'
+import { useAppStore } from '@/stores/app'
+import { filterVisibleMenus, isPathInMenu } from '@/utils/permission'
 import {
   SearchOutlined,
   BellOutlined,
   SettingOutlined,
   DownOutlined,
+  QuestionCircleOutlined,
+  MenuOutlined,
 } from '@ant-design/icons-vue'
 import type { MenuProps } from 'ant-design-vue'
 import type { Menu } from '@/types/menu'
@@ -18,6 +20,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const permissionStore = usePermissionStore()
+const appStore = useAppStore()
 
 // 获取顶级菜单（parentId === 0）
 const headerMenus = computed<Menu[]>(() => permissionStore.menuTree.filter((menu) => menu.parentId === 0 && !menu.hidden))
@@ -28,21 +31,16 @@ const activeMenuPath = computed(() => {
   return activeMenu?.path || ''
 })
 
+const activeTopMenu = computed(() => headerMenus.value.find((menu) => menu.path === activeMenuPath.value))
+const headerSubMenus = computed<Menu[]>(() => filterVisibleMenus(activeTopMenu.value?.children || []))
+const activeSubMenuPath = computed(() => {
+  const activeMenu = headerSubMenus.value.find((menu) => isPathInMenu(menu, route.path))
+  return activeMenu?.path || ''
+})
+const activeSubMenu = computed(() => headerSubMenus.value.find((menu) => menu.path === activeSubMenuPath.value))
+
 const canAccessProfile = computed(() => userStore.hasPermission('account:profile'))
 const canAccessSettings = computed(() => userStore.hasPermission('account:settings'))
-
-// 点击菜单跳转
-const handleMenuClick = (menu: Menu) => {
-  if (menu.redirect) {
-    router.push(menu.redirect)
-  } else if (menu.children && menu.children.length > 0) {
-    // 跳转到第一个子菜单
-    const firstChild = menu.children[0]
-    router.push(firstChild.path)
-  } else {
-    router.push(menu.path)
-  }
-}
 
 // 用户下拉菜单点击
 const handleUserMenuClick: MenuProps['onClick'] = async ({ key }) => {
@@ -57,267 +55,293 @@ const handleUserMenuClick: MenuProps['onClick'] = async ({ key }) => {
 </script>
 
 <template>
-  <nav class="admin-header" aria-label="主导航">
-    <div class="admin-brand" aria-label="Maple Admin">
-      <span class="admin-logo-mark">
-        <img src="/maple.svg" alt="" />
-      </span>
-      <span class="admin-brand-text">
-        <strong>Maple</strong>
-        <span>Admin</span>
-      </span>
-    </div>
-    <ul class="admin-main-menu">
-      <li
-        v-for="menu in headerMenus"
-        :key="menu.path"
-        :class="['admin-menu-item', { 'active-menu-item': activeMenuPath === menu.path }]"
-        @click="handleMenuClick(menu)"
-      >
-        <component :is="getIcon(menu.icon)" class="menu-icon" v-if="menu.icon" />
-        <span>{{ menu.title }}</span>
-      </li>
-    </ul>
-    <div class="admin-actions">
-      <button class="header-icon-btn" type="button" aria-label="搜索">
-        <search-outlined />
+  <header class="admin-header">
+    <div class="admin-header-left">
+      <button class="mobile-menu-btn" type="button" aria-label="打开菜单" @click="appStore.setMobileSidebarOpen(true)">
+        <MenuOutlined />
       </button>
-      <button class="header-icon-btn has-dot" type="button" aria-label="通知">
-        <bell-outlined />
-      </button>
-      <button class="header-icon-btn" type="button" aria-label="设置">
-        <setting-outlined />
-      </button>
-      <div class="admin-user">
-        <span class="admin-avatar">M</span>
-        <a-dropdown :trigger="['click']">
-          <a class="ant-dropdown-link" @click.prevent>
-            {{ userStore.username || '管理员' }}
-            <DownOutlined />
-          </a>
-          <template #overlay>
-            <a-menu @click="handleUserMenuClick">
-              <a-menu-item key="profile" :disabled="!canAccessProfile">个人中心</a-menu-item>
-              <a-menu-item key="settings" :disabled="!canAccessSettings">设置</a-menu-item>
-              <a-menu-divider />
-              <a-menu-item key="logout">登出</a-menu-item>
-            </a-menu>
-          </template>
-        </a-dropdown>
+      <div class="admin-header-path">
+        <span>{{ activeTopMenu?.title || 'Dashboard' }}</span>
+        <i>/</i>
+        <strong>{{ activeSubMenu?.title || 'Home' }}</strong>
       </div>
     </div>
-  </nav>
+
+    <div class="admin-header-right">
+      <div class="admin-search">
+        <SearchOutlined />
+        <input type="search" placeholder="Search data..." />
+      </div>
+      <button class="header-icon-btn has-dot" type="button" aria-label="通知">
+        <BellOutlined />
+      </button>
+      <button class="header-icon-btn" type="button" aria-label="帮助">
+        <QuestionCircleOutlined />
+      </button>
+      <button class="header-icon-btn" type="button" aria-label="设置" @click="router.push('/account/settings')">
+        <SettingOutlined />
+      </button>
+      <a-dropdown :trigger="['click']">
+        <button class="profile-trigger" type="button" aria-label="用户菜单">
+          <span class="profile-copy">
+            <strong>{{ userStore.username || '管理员' }}</strong>
+            <em>{{ userStore.nickname }}</em>
+          </span>
+          <span class="admin-avatar">M<i /></span>
+          <DownOutlined class="profile-arrow" />
+        </button>
+        <template #overlay>
+          <a-menu @click="handleUserMenuClick">
+            <a-menu-item key="profile" :disabled="!canAccessProfile">个人中心</a-menu-item>
+            <a-menu-item key="settings" :disabled="!canAccessSettings">设置</a-menu-item>
+            <a-menu-divider />
+            <a-menu-item key="logout">登出</a-menu-item>
+          </a-menu>
+        </template>
+      </a-dropdown>
+    </div>
+  </header>
 </template>
 
 <style lang="scss" scoped>
 .admin-header {
+  position: relative;
+  z-index: 5;
   display: flex;
   align-items: center;
-  flex: 0 0 66px;
-  height: 66px;
-  padding: 0 clamp(18px, 3vw, 42px);
-  background: rgba(255, 255, 255, 0.78);
-  border-bottom: 1px solid var(--maple-border);
-  box-shadow: 0 10px 30px rgba(31, 102, 117, 0.06);
-  backdrop-filter: blur(18px);
-  .admin-brand {
-    display: flex;
-    align-items: center;
-    width: 230px;
-    height: 100%;
-    min-width: 180px;
-    gap: 12px;
+  justify-content: space-between;
+  height: 56px;
+  min-height: 56px;
+  padding: 0 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom: 1px solid rgba(97, 151, 162, 0.18);
+  backdrop-filter: blur(16px);
+}
+
+.admin-header-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 22px;
+}
+
+.mobile-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  color: #344052;
+  cursor: pointer;
+  background: rgba(198, 230, 225, 0.6);
+  border: 1px solid rgba(0, 121, 107, 0.12);
+  border-radius: 10px;
+}
+
+.admin-header-path {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #6b7785;
+  font-size: 11px;
+  white-space: nowrap;
+
+  i {
+    color: #9aa8b5;
+    font-style: normal;
   }
-  .admin-logo-mark {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 42px;
-    height: 42px;
-    overflow: hidden;
-    background: linear-gradient(135deg, #ffffff, #e9fbf7);
-    border: 1px solid rgba(56, 189, 248, 0.2);
-    border-radius: 10px;
-    box-shadow: 0 10px 24px rgba(14, 165, 163, 0.14);
-    img {
-      width: 26px;
-      height: 26px;
-      object-fit: contain;
-    }
-  }
-  .admin-brand-text {
-    display: flex;
-    align-items: baseline;
-    color: var(--maple-text);
-    font-size: 18px;
-    line-height: 1;
-    white-space: nowrap;
-    strong {
-      font-weight: 800;
-    }
-    span {
-      margin-left: 4px;
-      color: var(--maple-primary-strong);
-      font-weight: 700;
-    }
-  }
-  .admin-main-menu {
-    width: 0;
-    height: 100%;
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-    margin: 0;
-    padding: 10px 20px;
-    .admin-menu-item {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 40px;
-      gap: 8px;
-      font-weight: 500;
-      padding: 0 22px;
-      color: #52677a;
-      cursor: pointer;
-      border: 1px solid transparent;
-      border-radius: 8px;
-      transition:
-        color 0.2s ease,
-        background 0.2s ease,
-        box-shadow 0.2s ease,
-        transform 0.2s ease;
-      .menu-icon {
-        font-size: 16px;
-      }
-      &:hover {
-        color: var(--maple-primary-strong);
-        background: rgba(236, 253, 245, 0.8);
-        transform: translateY(-1px);
-      }
-    }
-    .active-menu-item {
-      background: linear-gradient(135deg, #ecfeff, #ecfdf5);
-      color: var(--maple-primary-strong);
-      border-color: rgba(45, 212, 191, 0.28);
-      box-shadow: 0 10px 24px rgba(20, 184, 166, 0.12);
-    }
-  }
-  .admin-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    width: 270px;
-    height: 100%;
-    gap: 10px;
-  }
-  .header-icon-btn {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    color: #52677a;
-    cursor: pointer;
-    background: rgba(255, 255, 255, 0.76);
-    border: 1px solid var(--maple-border);
-    border-radius: 8px;
-    transition:
-      color 0.2s ease,
-      border-color 0.2s ease,
-      box-shadow 0.2s ease;
-    &:hover {
-      color: var(--maple-primary-strong);
-      border-color: rgba(45, 212, 191, 0.32);
-      box-shadow: 0 8px 18px rgba(20, 184, 166, 0.12);
-    }
-    &.has-dot::after {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      width: 7px;
-      height: 7px;
-      content: '';
-      background: #34d399;
-      border: 2px solid #ffffff;
-      border-radius: 50%;
-    }
-  }
-  .admin-user {
-    display: flex;
-    align-items: center;
-    height: 40px;
-    gap: 8px;
-    padding: 0 12px 0 6px;
-    color: var(--maple-text);
-    background: rgba(255, 255, 255, 0.82);
-    border: 1px solid var(--maple-border);
-    border-radius: 8px;
-  }
-  .admin-avatar {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    color: #ffffff;
-    font-size: 13px;
-    font-weight: 700;
-    background: linear-gradient(135deg, #38bdf8, #34d399);
-    border-radius: 8px;
-  }
-  .admin-username {
-    font-size: 14px;
-    font-weight: 500;
-    white-space: nowrap;
+
+  strong {
+    color: #00796b;
+    font-weight: 750;
   }
 }
 
-@media (max-width: 900px) {
+.admin-header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  gap: 14px;
+}
+
+.admin-search {
+  display: flex;
+  align-items: center;
+  width: min(250px, 24vw);
+  height: 34px;
+  gap: 10px;
+  padding: 0 14px;
+  color: #71808f;
+  background: rgba(241, 246, 247, 0.86);
+  border: 1px solid rgba(97, 151, 162, 0.1);
+  border-radius: 999px;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &:focus-within {
+    background: #ffffff;
+    border-color: rgba(0, 121, 107, 0.22);
+    box-shadow: 0 8px 24px rgba(31, 102, 117, 0.08);
+  }
+
+  input {
+    width: 100%;
+    min-width: 0;
+    color: var(--maple-text);
+    font-size: 12px;
+    outline: none;
+    background: transparent;
+    border: 0;
+
+    &::placeholder {
+      color: #8995a1;
+    }
+  }
+}
+
+.header-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  padding: 0;
+  color: #344052;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+
+  &:hover {
+    color: #00796b;
+    background: rgba(198, 230, 225, 0.68);
+    border-color: rgba(0, 121, 107, 0.12);
+  }
+
+  &.has-dot::after {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 7px;
+    height: 7px;
+    content: '';
+    background: #e53935;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+  }
+}
+
+.profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 0 0 16px;
+  color: var(--maple-text);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-left: 1px solid rgba(97, 151, 162, 0.22);
+}
+
+.profile-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 86px;
+
+  strong {
+    color: #1d2939;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.1;
+  }
+
+  em {
+    margin-top: 4px;
+    color: #6b7785;
+    font-size: 10px;
+    font-style: normal;
+    line-height: 1.1;
+  }
+}
+
+.admin-avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #00796b, #00bfa5);
+  border-radius: 999px;
+  box-shadow: 0 8px 18px rgba(0, 121, 107, 0.18);
+
+  i {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 10px;
+    height: 10px;
+    background: #26c281;
+    border: 2px solid #ffffff;
+    border-radius: 999px;
+  }
+}
+
+.profile-arrow {
+  color: #6b7785;
+  font-size: 10px;
+}
+
+@media (max-width: 991.98px) {
   .admin-header {
-    padding: 0 16px;
-    .admin-brand {
-      width: auto;
-      min-width: auto;
-    }
-    .admin-brand-text {
-      display: none;
-    }
-    .admin-main-menu {
-      justify-content: center;
-      padding: 10px 12px;
-      .admin-menu-item {
-        padding: 0 14px;
-      }
-    }
-    .admin-actions {
-      width: auto;
-    }
-    .admin-username {
-      display: none;
-    }
+    height: auto;
+    min-height: 72px;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .admin-header-left,
+  .admin-header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
+  }
+
+  .admin-search {
+    width: min(320px, 48vw);
   }
 }
 
 @media (max-width: 640px) {
-  .admin-header {
-    .admin-main-menu {
-      overflow-x: auto;
-      justify-content: flex-start;
-      scrollbar-width: none;
-      &::-webkit-scrollbar {
-        display: none;
-      }
-      .admin-menu-item {
-        flex: 0 0 auto;
-      }
-    }
-    .header-icon-btn {
-      display: none;
-    }
+  .admin-header-path,
+  .profile-copy,
+  .profile-arrow {
+    display: none;
+  }
+
+  .admin-search {
+    width: 100%;
+    flex: 1;
   }
 }
 </style>

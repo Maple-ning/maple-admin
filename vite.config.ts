@@ -4,9 +4,16 @@ import path from "path";
 
 export default defineConfig({
   plugins: [vue()],
+  cacheDir: ".vite-maple",
   server: {
     port: 8088,
     strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {
     alias: {

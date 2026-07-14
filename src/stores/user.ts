@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { login, getUserInfo as fetchUserInfo, logout as logoutApi } from '@/api/system'
+import { login, getUserInfo as fetchUserInfo, logout as logoutApi } from '@/api/system/auth'
 import type { LoginParams, LoginResult, UserInfo } from '@/types/system'
 import { usePermissionStore } from './permission'
 

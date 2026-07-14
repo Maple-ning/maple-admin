@@ -1,0 +1,58 @@
+{
+  "hash": "be337655",
+  "configHash": "bd0a2c00",
+  "lockfileHash": "2b83e1c1",
+  "browserHash": "0318c550",
+  "optimized": {
+    "@ant-design/icons-vue": {
+      "src": "../../node_modules/@ant-design/icons-vue/es/index.js",
+      "file": "@ant-design_icons-vue.js",
+      "fileHash": "1dfc1a29",
+      "needsInterop": false
+    },
+    "ant-design-vue": {
+      "src": "../../node_modules/ant-design-vue/es/index.js",
+      "file": "ant-design-vue.js",
+      "fileHash": "c0f583ff",
+      "needsInterop": false
+    },
+    "axios": {
+      "src": "../../node_modules/axios/index.js",
+      "file": "axios.js",
+      "fileHash": "7528cd0d",
+      "needsInterop": false
+    },
+    "pinia": {
+      "src": "../../node_modules/pinia/dist/pinia.mjs",
+      "file": "pinia.js",
+      "fileHash": "4566c759",
+      "needsInterop": false
+    },
+    "vue-router": {
+      "src": "../../node_modules/vue-router/dist/vue-router.mjs",
+      "file": "vue-router.js",
+      "fileHash": "c2d04d6b",
+      "needsInterop": false
+    },
+    "vue": {
+      "src": "../../node_modules/vue/dist/vue.runtime.esm-bundler.js",
+      "file": "vue.js",
+      "fileHash": "1ed29144",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-B-1-B7_t": {
+      "file": "chunk-B-1-B7_t.js",
+      "isDynamicEntry": false
+    },
+    "es-DtZ5sy-H": {
+      "file": "es-DtZ5sy-H.js",
+      "isDynamicEntry": false
+    },
+    "vue.runtime.esm-bundler-DbLSB1wY": {
+      "file": "vue.runtime.esm-bundler-DbLSB1wY.js",
+      "isDynamicEntry": false
+    }
+  }
+}
