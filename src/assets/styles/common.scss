@@ -60,11 +60,30 @@
 
 // 搜索栏（固定顶部）
 .page-search {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 52px; // 32px 控件 + 上下各 10px 内边距
   flex-shrink: 0;
   padding: 10px 16px;
-  background: #fff;
   margin-bottom: 10px;
+  overflow: visible;
+  background: #fff;
   border-radius: 8px;
+
+  // Ant Design inline form 默认保留底部 margin，会让内容盒高度和视觉高度不一致。
+  > .ant-form-inline {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    min-height: 32px;
+  }
+
+  > .ant-form-inline .ant-form-item {
+    margin-right: 0;
+    margin-bottom: 0;
+  }
 }
 
 // 主体区域（表格 + 分页的父容器）

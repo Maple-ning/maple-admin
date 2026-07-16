@@ -5,34 +5,42 @@ import { createMenu, deleteMenu, getMenuList, updateMenu } from '@/api/system/me
 import type { MenuType, SystemMenu } from '@/api/system/menu'
 import * as Icons from '@ant-design/icons-vue'
 import type { Component } from 'vue'
+import MenuDialog from './components/menuDialog.vue'
 
 type MenuRecord = SystemMenu
 
 const { AppstoreOutlined, ApartmentOutlined, BarsOutlined, DashboardOutlined, DeleteOutlined, EditOutlined, FileSearchOutlined, HolderOutlined, KeyOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PlusOutlined, SafetyCertificateOutlined, SettingOutlined, ShoppingCartOutlined, TeamOutlined, UserOutlined } = Icons
 const rows = reactive<MenuRecord[]>([])
 async function loadMenus() {
-  try { rows.splice(0, rows.length, ...(await getMenuList())) }
-  catch { message.error('菜单数据加载失败，请确认本地接口已启动') }
+  try {
+    rows.splice(0, rows.length, ...(await getMenuList()))
+  } catch {
+    message.error('菜单数据加载失败，请确认本地接口已启动')
+  }
 }
 onMounted(loadMenus)
 
 const iconMap: Record<string, Component> = { AppstoreOutlined, ApartmentOutlined, BarsOutlined, DashboardOutlined, DeleteOutlined, EditOutlined, FileSearchOutlined, KeyOutlined, PlusOutlined, SafetyCertificateOutlined, SettingOutlined, ShoppingCartOutlined, TeamOutlined, UserOutlined }
-const iconOptions = Object.keys(iconMap).map((value) => ({ value, label: value.replace('Outlined', '') }))
+
 const typeMeta = { dir: { label: '目录', color: 'blue' }, menu: { label: '菜单', color: 'cyan' }, btn: { label: '按钮', color: 'orange' } } as const
 const getTypeMeta = (type: MenuType) => typeMeta[type]
 const expandedKeys = ref<number[]>(rows.map((item) => item.id))
-const modalOpen = ref(false),
-  editingId = ref<number | null>(null),
-  dragId = ref<number | null>(null)
+const dragId = ref<number | null>(null)
 const dropTarget = ref<{ id: number; mode: 'before' | 'inside' | 'after' } | null>(null)
-const form = reactive({ parentId: 0, name: '', type: 'menu' as MenuType, path: '', component: '', permission: '', icon: 'BarsOutlined', orderNum: 1, status: true })
+
 const treeData = computed(() => {
   const map = new Map<number, MenuRecord>()
   rows.forEach((item) => map.set(item.id, { ...item, children: [] }))
   const roots: MenuRecord[] = []
   map.forEach((item) => (item.parentId === 0 ? roots : map.get(item.parentId)?.children)?.push(item))
-  const sort = (list: MenuRecord[]) => list.sort((a, b) => a.orderNum - b.orderNum).forEach((item) => sort(item.children || []))
-  sort(roots)
+  const normalizeTree = (list: MenuRecord[]) => {
+    list.sort((a, b) => a.orderNum - b.orderNum)
+    list.forEach((item) => {
+      if (item.children?.length) normalizeTree(item.children)
+      else delete item.children
+    })
+  }
+  normalizeTree(roots)
   return roots
 })
 const findItem = (id: number | null) => rows.find((item) => item.id === id)
@@ -45,37 +53,53 @@ function isDescendant(parentId: number | null, id: number) {
   }
   return false
 }
-const cascaderOptions = computed(() => {
-  const convert = (item: MenuRecord): any => ({ value: item.id, label: item.name, disabled: item.type === 'btn' || item.id === editingId.value || isDescendant(editingId.value, item.id), children: item.children?.map(convert) })
-  return [{ value: 0, label: '顶级菜单' }, ...treeData.value.map(convert)]
-})
+
 function normalize(parentId: number) {
   rows
     .filter((item) => item.parentId === parentId)
     .sort((a, b) => a.orderNum - b.orderNum)
     .forEach((item, i) => (item.orderNum = i + 1))
 }
-function openCreate(parentId = 0) {
-  editingId.value = null
-  Object.assign(form, { parentId, name: '', type: 'menu', path: '', component: '', permission: '', icon: 'BarsOutlined', orderNum: rows.filter((item) => item.parentId === parentId).length + 1, status: true })
-  modalOpen.value = true
+
+// 新增/修改菜单弹窗 --> start
+const modalVisible = ref(false)
+const submitLoading = ref(false)
+const editingMenu = ref<MenuRecord | null>(null)
+const defaultParentId = ref(0)
+
+const openCreate = (parentId = 0) => {
+  editingMenu.value = null
+  defaultParentId.value = parentId
+  modalVisible.value = true
 }
-function openEdit(item: MenuRecord) {
-  editingId.value = item.id
-  Object.assign(form, item)
-  modalOpen.value = true
+
+const openEdit = (item: MenuRecord) => {
+  editingMenu.value = item
+  defaultParentId.value = item.parentId
+  modalVisible.value = true
 }
-async function save() {
-  if (!form.name.trim()) return message.warning('请输入菜单名称')
-  if (form.type !== 'btn' && !form.path.trim()) return message.warning('请输入路由地址')
-  const data = { ...form, path: form.type === 'btn' ? '' : form.path, component: form.type === 'btn' ? '' : form.component }
-  const editingItem = findItem(editingId.value)
-  if (editingItem) Object.assign(editingItem, await updateMenu(editingItem.id, data))
-  else rows.push(await createMenu({ ...data, createTime: new Date().toLocaleString('zh-CN', { hour12: false }) }))
-  normalize(data.parentId)
-  modalOpen.value = false
-  message.success(editingItem ? '菜单编辑成功' : '菜单新增成功')
+
+async function handleDialogSubmit(data: Omit<MenuRecord, 'id' | 'createTime' | 'children'>) {
+  submitLoading.value = true
+  try {
+    if (editingMenu.value) {
+      const previousParentId = editingMenu.value.parentId
+      Object.assign(editingMenu.value, await updateMenu(editingMenu.value.id, data))
+      normalize(previousParentId)
+      normalize(data.parentId)
+      message.success('菜单编辑成功')
+    } else {
+      rows.push(await createMenu({ ...data, createTime: new Date().toLocaleString('zh-CN', { hour12: false }) }))
+      normalize(data.parentId)
+      message.success('菜单新增成功')
+    }
+    modalVisible.value = false
+  } finally {
+    submitLoading.value = false
+  }
 }
+// 新增/修改菜单弹窗 --> end
+
 function descendants(id: number): number[] {
   return rows.filter((item) => item.parentId === id).flatMap((item) => [item.id, ...descendants(item.id)])
 }
@@ -97,7 +121,8 @@ function remove(item: MenuRecord) {
   })
 }
 function toggleAll() {
-  expandedKeys.value = expandedKeys.value.length ? [] : rows.filter((item) => rows.some((child) => child.parentId === item.id)).map((item) => item.id)
+  const parentIds = rows.filter((item) => rows.some((child) => child.parentId === item.id)).map((item) => item.id)
+  expandedKeys.value = expandedKeys.value.length ? [] : parentIds
 }
 function customRow(record: MenuRecord) {
   return {
@@ -149,9 +174,20 @@ function handleDrop(target: MenuRecord) {
   dropTarget.value = null
   message.success('菜单顺序已更新')
 }
-async function updateMenuStatus(item: MenuRecord) {
-  try { Object.assign(item, await updateMenu(item.id, { status: item.status })); message.success('状态更新成功') }
-  catch { item.status = !item.status }
+async function updateMenuStatus(item: MenuRecord, status: boolean) {
+  const source = findItem(item.id)
+  if (!source) return
+  const previousStatus = source.status
+  source.status = status
+  try {
+    Object.assign(source, await updateMenu(source.id, { status }))
+    message.success('状态更新成功')
+  } catch {
+    source.status = previousStatus
+  }
+}
+function handleStatusChange(item: MenuRecord, checked: boolean | string | number) {
+  return updateMenuStatus(item, Boolean(checked))
 }
 </script>
 
@@ -204,7 +240,7 @@ async function updateMenuStatus(item: MenuRecord) {
           </a-table-column>
           <a-table-column title="排序" data-index="orderNum" :width="70" align="center" />
           <a-table-column title="状态" :width="100" align="center">
-          <template #default="{ record }"><a-switch v-model:checked="record.status" checked-children="启用" un-checked-children="禁用" @change="updateMenuStatus(record)" /></template>
+            <template #default="{ record }"><a-switch :checked="record.status" checked-children="启用" un-checked-children="禁用" @change="handleStatusChange(record, $event)" /></template>
           </a-table-column>
           <a-table-column title="操作" :width="150" fixed="right" align="center">
             <template #default="{ record }">
@@ -221,40 +257,14 @@ async function updateMenuStatus(item: MenuRecord) {
         </a-table>
       </div>
     </div>
-    <a-modal v-model:open="modalOpen" :title="editingId ? '编辑菜单' : '新增菜单'" width="680px" ok-text="保存" cancel-text="取消" @ok="save">
-      <a-form class="menu-form" :model="form" layout="vertical">
-        <div class="form-grid">
-          <a-form-item label="父级菜单"><a-cascader v-model:value="form.parentId" :options="cascaderOptions" change-on-select placeholder="请选择父级菜单" /></a-form-item>
-          <a-form-item label="菜单类型">
-            <a-radio-group v-model:value="form.type" button-style="solid">
-              <a-radio-button value="dir">目录</a-radio-button>
-              <a-radio-button value="menu">菜单</a-radio-button>
-              <a-radio-button value="btn">按钮</a-radio-button>
-            </a-radio-group>
-          </a-form-item>
-        </div>
-        <div class="form-grid">
-          <a-form-item label="菜单名称" required><a-input v-model:value="form.name" placeholder="请输入菜单名称" /></a-form-item>
-          <a-form-item label="权限标识"><a-input v-model:value="form.permission" placeholder="例如 agent:list" /></a-form-item>
-        </div>
-        <div v-if="form.type !== 'btn'" class="form-grid">
-          <a-form-item label="路由地址" required><a-input v-model:value="form.path" placeholder="例如 /system/menu" /></a-form-item>
-          <a-form-item label="组件路径"><a-input v-model:value="form.component" placeholder="例如 @/views/System/Menu/index.vue" /></a-form-item>
-        </div>
-        <div class="form-grid">
-          <a-form-item label="菜单图标">
-            <a-select v-model:value="form.icon" :options="iconOptions" show-search>
-              <template #option="option">
-                <component :is="iconMap[String(option.value)]" />
-                <span class="icon-label">{{ option.label }}</span>
-              </template>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="排序号"><a-input-number v-model:value="form.orderNum" :min="1" :max="999" style="width: 100%" /></a-form-item>
-        </div>
-        <a-form-item label="状态"><a-switch v-model:checked="form.status" checked-children="启用" un-checked-children="禁用" /></a-form-item>
-      </a-form>
-    </a-modal>
+    <MenuDialog
+      v-model:open="modalVisible"
+      :menus="rows"
+      :editing-menu="editingMenu"
+      :default-parent-id="defaultParentId"
+      :confirm-loading="submitLoading"
+      @submit="handleDialogSubmit"
+    />
   </section>
 </template>
 
@@ -316,26 +326,12 @@ code {
 .menu-table :deep(.drop-after > td) {
   box-shadow: inset 0 -2px #00a891;
 }
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-}
-.menu-form {
-  padding-top: 10px;
-}
-.icon-label {
-  margin-left: 8px;
-}
+
 @media (max-width: 720px) {
   .page-search {
     align-items: flex-start;
     flex-direction: column;
     gap: 12px;
-  }
-  .form-grid {
-    grid-template-columns: 1fr;
-    gap: 0;
   }
   .drag-tip {
     display: none;
